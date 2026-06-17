@@ -1,0 +1,14 @@
+# virtual environment
+.venv/
+
+# data files (documented in README, never committed)
+*.csv
+*.gz
+compressed_data.csv.gz
+
+# python
+__pycache__/
+*.pyc
+
+# jupyter
+.ipynb_checkpoints/
