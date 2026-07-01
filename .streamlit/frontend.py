@@ -5,7 +5,12 @@ Start the backend first (in its own terminal):
     uvicorn backend:app --reload
 Then run this:
     streamlit run frontend.py
+
+Config: set BASEL_DB_URL (and optionally BASEL_API_URL) in a .env file at the
+project root. Nothing secret is hard-coded here.
 """
+import os
+from dotenv import load_dotenv
 import json
 import numpy as np
 import pandas as pd
@@ -13,8 +18,10 @@ import requests
 import streamlit as st
 import plotly.graph_objects as go
 
-API_URL = "http://127.0.0.1:8000"
-DB_URL  = "mysql+pymysql://root:America23@localhost:3306/basel_lite"
+load_dotenv()  # read .env from the project root
+
+API_URL = os.getenv("BASEL_API_URL", "http://127.0.0.1:8000")
+DB_URL  = os.getenv("BASEL_DB_URL", "mysql+pymysql://root@localhost:3306/basel_lite")
 
 st.set_page_config(page_title="Basel-Lite · Credit Risk", page_icon="◆", layout="wide")
 

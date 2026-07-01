@@ -14,7 +14,7 @@
 **Repository owner / author note:** Ailya Shah, Data Science at SEECS
 ##
 ## Abstract
-Banks lose money when borrowers default, and the hard part isn't lending — it's pricing that risk before it happens. Basel-Lite is an end-to-end credit risk system built on 2.2 million real LendingClub loans that does exactly that. It estimates each borrower's probability of default with a calibrated LightGBM model, assigns a 300–850 credit score using a Weight-of-Evidence scorecard like the ones banks actually deploy, and measures loss given default straight from real recovery data. Those pieces combine into the Basel formula — Expected Loss = PD × LGD × EAD — to compute the capital a lender should reserve, loan by loan and across the entire book. Every model uses only information available at application time, so there's no data leakage inflating the results. The whole thing ships as a real stack: a MySQL data layer, a FastAPI scoring service, and a live Streamlit dashboard where dragging a borrower's FICO score watches their default risk and expected loss recalculate in real time. SHAP explains every prediction, calibration curves prove the probabilities are trustworthy, and survival analysis models when defaults strike, not just whether. It's not a notebook — it's a deployable risk engine. From raw loan data to a clickable capital model, the way a real risk desk would build it.
+Banks lose money when borrowers default, and the hard part isn't lending — it's pricing that risk before it happens. Basel-Lite is an end-to-end credit risk system that does exactly that, built on a 200,000-loan sample of the 2007–2018 LendingClub book (≈119,000 *completed* loans used for modeling, after dropping still-current ones). It estimates each borrower's probability of default with a calibrated LightGBM model, assigns a 300–850 credit score using a Weight-of-Evidence scorecard like the ones banks actually deploy, and measures loss given default straight from real recovery data. Those pieces combine into the Basel formula — Expected Loss = PD × LGD × EAD — to compute the capital a lender should reserve, loan by loan and across a sampled book. Every model uses only information available at application time, so there's no data leakage inflating the results. The whole thing ships as a real stack: a MySQL data layer, a FastAPI scoring service, and a live Streamlit dashboard where dragging a borrower's FICO score watches their default risk and expected loss recalculate in real time. SHAP explains every prediction, calibration curves prove the probabilities are trustworthy, and survival analysis models when defaults strike, not just whether. It's not a notebook — it's a deployable risk engine. From raw loan data to a clickable capital model, the way a real risk desk would build it.
 
 ##
 ![Borrower scorer](app-ss/app.png)
@@ -27,9 +27,9 @@ Banks lose money when borrowers default, and the hard part isn't lending — it'
 - **Probability of Default (PD)** — a calibrated LightGBM model trained on application-time features only (no leakage).
 - **Credit scorecard** — a Weight-of-Evidence + logistic scorecard scaled to a 300–850 range, the way regulated credit scores are actually built.
 - **Loss Given Default (LGD)** — measured empirically from real recovery data on charged-off loans.
-- **Expected Loss** — `EL = PD × LGD × EAD`, computed per loan and aggregated across the whole book.
-- **Macro-aware risk** — survival analysis for *when* defaults happen, on top of *whether* they happen.
-- **Live app** — a borrower scorer that updates as you drag the sliders, plus a portfolio dashboard that values the entire loan book in one click.
+- **Expected Loss** — `EL = PD × LGD × EAD`, computed per loan and aggregated to a portfolio number.
+- **Timing of default** — survival analysis (Kaplan–Meier + Cox) for *when* defaults happen, on top of *whether* they happen.
+- **Live app** — a borrower scorer that updates as you drag the sliders, plus a portfolio dashboard that values a sampled slice of the book in one click.
 
 ---
 
@@ -47,14 +47,14 @@ Every input is adjustable, with the finer credit-history fields tucked into an e
 ### Portfolio risk
 Sample any number of loans from the book and value them in one pass — total exposure, total expected loss, loss rate, average PD, and the loss broken down by credit grade.
 
-![Portfolio risk](app-ss/portfolio-risk.py.png)
+![Portfolio risk](app-ss/portfolio-risk.png)
 
 ---
 
 ## How it works
 
 ### Data & leakage control
-The model is trained on the **LendingClub 2007–2018** loan book. The target is built from loan status — *Charged Off* = default (1), *Fully Paid* = good (0), with in-progress loans dropped. Crucially, only features **known at application time** are used; post-origination fields (`recoveries`, `total_pymnt`, last-pull FICO, etc.) are excluded so the model can't "cheat" by seeing the outcome.
+The model is trained on a sample of the **LendingClub 2007–2018** loan book. The target is built from loan status — *Charged Off* = default (1), *Fully Paid* = good (0), with in-progress loans dropped. Crucially, only features **known at application time** are used; post-origination fields (`recoveries`, `total_pymnt`, last-pull FICO, etc.) are excluded so the model can't "cheat" by seeing the outcome.
 
 ### Feature strength — Information Value
 Every feature is binned and scored by Information Value, the standard way a credit team ranks predictors before building a scorecard.
@@ -90,16 +90,19 @@ Default rate climbs cleanly across LendingClub's own risk grades — a sanity ch
 
 ## Results
 
-> Replace the model figures below with the exact numbers your notebook prints on your data.
+*Numbers below are the exact values printed by the notebook on the current 200K sample; they will shift slightly if you resample.*
 
 | Metric | Value |
 |---|---|
+| Modeling sample (completed loans) | 119,060 |
 | Portfolio default rate | 19.8% |
-| Average LGD (measured) | ~62% |
-| PD model — ROC AUC | ~0.71 |
-| PD model — KS | ~0.31 |
-| PD model — Gini | ~0.42 |
-| Portfolio Expected Loss rate | ~9% of exposure |
+| Average recovery rate (measured) | 37.8% |
+| Average LGD (measured) | 62.2% |
+| PD model — ROC AUC | 0.713 |
+| PD model — KS | 0.312 |
+| PD model — Gini | 0.427 |
+| Test-set average PD | 19.9% |
+| Test-set Expected Loss rate | 13.3% of exposure |
 
 ---
 
@@ -107,15 +110,16 @@ Default rate climbs cleanly across LendingClub's own risk grades — a sanity ch
 
 ```mermaid
 flowchart LR
-    A[(MySQL<br/>loans_clean)] --> B[basel_lite.ipynb<br/>train & save models]
+    L[(MySQL<br/>loans — raw sample)] --> B[basel_lite.ipynb<br/>clean · train · save]
+    B --> Lc[(MySQL<br/>loans_clean)]
     B --> C[/assets/models<br/>*.joblib/]
     C --> D[backend.py<br/>FastAPI]
-    A --> D
-    D -->|/score · /score_batch| E[frontend.py<br/>Streamlit dashboard]
+    Lc --> E[frontend.py<br/>Streamlit dashboard]
+    D -->|/score · /score_batch| E
     U((User)) --> E
 ```
 
-The notebook trains and saves the models; FastAPI loads them and serves predictions; Streamlit is the UI that calls the API.
+The notebook cleans the raw `loans` sample, writes `loans_clean`, and saves the trained models; FastAPI loads the models and serves predictions; Streamlit reads `loans_clean` for the portfolio view and calls the API for scoring.
 
 ---
 
@@ -132,6 +136,8 @@ basel_lite/
 │   ├── images/             # charts, generated by the notebook (Section 12)
 │   └── models/             # trained artifacts: pd_model, binning, scorecard, model_meta
 ├── app-ss/                 # app screenshots (used in this README)
+├── .env.example            # template for BASEL_DB_URL / BASEL_API_URL (copy to .env)
+├── requirements.txt
 ├── .gitignore
 └── README.md
 ```
@@ -146,17 +152,22 @@ basel_lite/
 
 ### 1. Get the data
 Download the LendingClub accepted-loans file from Kaggle
-(`wordsforthewise/lending-club`), then run the sampling + cleaning cells in the
-notebook to build the `loans` and `loans_clean` tables in MySQL. The raw data
-is **not** committed to this repo.
+(`wordsforthewise/lending-club`) and load a sample into a `loans` table in MySQL.
+Running the notebook's cleaning cells then writes the modeling-ready `loans_clean`
+table (the dashboard's Portfolio page reads from it). The raw data is **not**
+committed to this repo.
 
-### 2. Install dependencies
+### 2. Install dependencies & configure secrets
 ```bash
 python -m venv .venv
 # activate it, then:
-pip install pandas numpy scikit-learn lightgbm optbinning shap matplotlib lifelines \
-            sqlalchemy pymysql joblib fastapi "uvicorn[standard]" streamlit plotly requests
+pip install -r requirements.txt
+
+# copy the env template and fill in your MySQL URL
+cp .env.example .env        # Windows: copy .env.example .env
 ```
+`.env` holds `BASEL_DB_URL` (and optionally `BASEL_API_URL`); it is gitignored, so
+no credentials live in the repo.
 
 ### 3. Train the models
 Open `basel_lite.ipynb`, select the `.venv` kernel, and run all cells top to bottom.
@@ -190,6 +201,7 @@ Opens at <http://localhost:8501>.
 
 ## Notes & limitations
 
+- **Sampled book** — the current run uses a 200K-loan sample of the LendingClub file (≈119K completed loans); portfolio figures are for that sample, not the full 2.2M-loan book.
 - **EAD** is approximated by the loan amount; a production model would use outstanding principal at default.
 - **LGD** uses a portfolio-average recovery rate; a fuller model would predict LGD per loan.
 - Grade, sub-grade and interest rate are LendingClub's own risk pricing, so they carry high predictive power but partly encode the answer — the more independent signals are FICO, DTI, term, and income.

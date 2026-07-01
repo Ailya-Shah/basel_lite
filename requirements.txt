@@ -1,0 +1,26 @@
+# --- data + modeling (notebook) ---
+pandas
+numpy
+scikit-learn
+lightgbm
+optbinning
+shap
+matplotlib
+lifelines
+
+# --- database ---
+SQLAlchemy
+PyMySQL
+
+# --- persistence + config ---
+joblib
+python-dotenv
+
+# --- backend (FastAPI service) ---
+fastapi
+uvicorn[standard]
+
+# --- frontend (Streamlit dashboard) ---
+streamlit
+plotly
+requests

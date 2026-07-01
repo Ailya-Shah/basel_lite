@@ -7,7 +7,7 @@ Loads the models trained in basel_lite.ipynb and serves them:
   POST /score_batch   -> score many borrowers + portfolio totals
 
 Run locally:
-  uvicorn app:app --reload
+  uvicorn backend:app --reload
 Then open the interactive docs at http://127.0.0.1:8000/docs
 """
 from fastapi import FastAPI
