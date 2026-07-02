@@ -18,7 +18,7 @@ import requests
 import streamlit as st
 import plotly.graph_objects as go
 
-load_dotenv()  # read .env from the project root
+load_dotenv()  # read .env from the project's root
 
 API_URL = os.getenv("BASEL_API_URL", "http://127.0.0.1:8000")
 DB_URL  = os.getenv("BASEL_DB_URL", "mysql+pymysql://root@localhost:3306/basel_lite")
