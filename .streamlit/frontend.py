@@ -154,6 +154,12 @@ def dark_layout(fig, title, h=320):
         margin=dict(l=10, r=10, t=46, b=10))
     return fig
 
+# cache the engine so we don't create a new one on every rerun (Streamlit reloads on every input change)
+@st.cache_resource
+def get_engine():
+    from sqlalchemy import create_engine
+    return create_engine(DB_URL)
+
 # ===========================================================================
 # PAGE 1 — Borrower scorer (live)
 # ===========================================================================
@@ -250,8 +256,7 @@ elif page == "Portfolio risk":
             st.warning("Backend offline. Start it with `uvicorn backend:app --reload`.")
         else:
             try:
-                from sqlalchemy import create_engine
-                eng = create_engine(DB_URL)
+                eng = get_engine()
                 df = pd.read_sql(f"SELECT * FROM loans_clean ORDER BY RAND() LIMIT {n}", eng)
                 df = df.drop(columns=[c for c in ["default"] if c in df.columns])
                 # JSON can't carry NaN/inf — fill numerics (median), categoricals ("n/a")
@@ -283,7 +288,7 @@ elif page == "Portfolio risk":
             except Exception as e:
                 st.error(f"Could not load portfolio: {e}")
     else:
-        st.info("Pick a sample size and press **Run portfolio** to value the whole book.")
+        st.info("Pick a sample size and press **RUN PORTFOLIO** to value a sampled slice of the book.")
 
 # ===========================================================================
 # PAGE 3 — Overview
@@ -297,7 +302,7 @@ else:
         <b style="color:{TEXT}">probability of default</b>, assigns a
         <b style="color:{TEXT}">300&ndash;850 credit score</b>, and computes the
         <b style="color:{TEXT}">expected loss</b> for any borrower &mdash; loan by loan
-        and across the book.</p></div>""")
+        and across a sampled book.</p></div>""")
     with b:
         html(f"""<div class="card"><div class="metric-label">// THE MODEL</div>
         <p style="color:{MUTED};line-height:1.7;margin-top:14px">WoE scorecard +
