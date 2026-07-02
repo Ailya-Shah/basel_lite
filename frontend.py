@@ -24,7 +24,6 @@ API_URL = os.getenv("BASEL_API_URL", "http://127.0.0.1:8000")
 DB_URL  = os.getenv("BASEL_DB_URL", "mysql+pymysql://root@localhost:3306/basel_lite")
 
 st.set_page_config(page_title="Basel-Lite · Credit Risk", page_icon="◆", layout="wide")
-
 # ---------------------------------------------------------------------------
 # Palette  (cyan/violet brand; risk traffic-light kept for semantics only)
 # ---------------------------------------------------------------------------
