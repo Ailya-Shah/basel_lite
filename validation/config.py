@@ -64,7 +64,13 @@ THRESHOLDS = {
     "psi_max":         0.25,   # max score-distribution shift (train vs holdout)
     "monotonic_max":  -0.80,   # Spearman(band, default rate) must be <= this
     "challenger_tol":  0.02,   # champion Gini must be >= challenger Gini - tol
+    "psi_oot_max":     0.25,   # max out-of-time (vintage) score PSI
 }
+
+# --- out-of-time PSI (vintage stability) ---
+ISSUE_DATE_COL   = "issue_d"
+VINTAGE_BASELINE = (2013, 2014)   # early issue-year window (inclusive)
+VINTAGE_COMPARE  = (2015, 2016)   # later window to compare against
 
 # Toggle: the DB read can be slow; cache the split to parquet after first run.
 CACHE_SPLIT = os.getenv("BASEL_VALIDATION_CACHE", "").strip() or None

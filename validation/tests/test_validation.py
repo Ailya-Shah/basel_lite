@@ -34,3 +34,9 @@ def test_champion_beats_challenger(results):
     # A failure here is a legitimate finding (simpler model may suffice),
     # but for the shipped model we expect the GBM to hold its ground.
     assert results.get("challenger").passed, results.get("challenger").finding
+
+
+def test_out_of_time_psi(results):
+    if not any(c.name == "psi_out_of_time" for c in results.checks):
+        pytest.skip("issue_d not persisted yet — run the notebook patch")
+    assert results.get("psi_out_of_time").passed, results.get("psi_out_of_time").finding
