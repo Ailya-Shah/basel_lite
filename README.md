@@ -12,7 +12,6 @@
 
 **Report authors:** Ailya Shah  
 
-**Program:** Department of Computer Science, CS-245 Machine Learning  
 **Repository owner / author note:** Ailya Shah, Data Science at SEECS
 ##
 ## Abstract
