@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 
 import numpy as np
+import pandas as pd
 from sklearn.linear_model import LogisticRegression
 
 from . import config as C
@@ -130,6 +131,31 @@ def run() -> Results:
         "expected_loss_rate": float(el.sum() / ead.sum()),
         "avg_pd": float(pd_te.mean()),
     }
+
+    # ---- 4b. out-of-time stability (vintage PSI) --------------------------
+    if C.ISSUE_DATE_COL in df.columns:
+        yr = pd.to_datetime(df[C.ISSUE_DATE_COL], errors="coerce").dt.year.to_numpy()
+        all_sc = D.card_scores(art, df)                       # score the full book
+        (b0, b1), (c0, c1) = C.VINTAGE_BASELINE, C.VINTAGE_COMPARE
+        base = all_sc[(yr >= b0) & (yr <= b1)]
+        comp = all_sc[(yr >= c0) & (yr <= c1)]
+        if len(base) >= 100 and len(comp) >= 100:
+            psi_oot = M.population_stability_index(base, comp)
+            res.checks.append(Check(
+                "psi_out_of_time", psi_oot, T["psi_oot_max"], psi_oot <= T["psi_oot_max"],
+                f"Score PSI {b0}-{b1} vs {c0}-{c1}: {psi_oot:.3f} "
+                f"(n {len(base):,} vs {len(comp):,}).",
+            ))
+            res.charts["psi_oot"] = (base, comp, (b0, b1, c0, c1))
+        else:
+            res.checks.append(Check(
+                "psi_out_of_time", float("nan"), T["psi_oot_max"], True,
+                "Skipped: a vintage window has too few completed loans.",
+            ))
+    else:
+        res.info["psi_oot_note"] = ("issue_d not in loans_clean — apply the notebook "
+                                    "patch and re-run to enable out-of-time PSI.")
+
     return res
 
 

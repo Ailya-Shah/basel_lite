@@ -113,6 +113,22 @@ def _charts_page(pdf: PdfPages, res: Results):
     pdf.savefig(fig); plt.close(fig)
 
 
+def _oot_page(pdf: PdfPages, res: Results):
+    if "psi_oot" not in res.charts:
+        return
+    base, comp, (b0, b1, c0, c1) = res.charts["psi_oot"]
+    fig, ax = plt.subplots(figsize=(8.27, 5))
+    ax.hist(base, bins=40, alpha=0.55, density=True, label=f"{b0}-{b1} (baseline)", color="#7b86bb")
+    ax.hist(comp, bins=40, alpha=0.55, density=True, label=f"{c0}-{c1} (later)",   color=GREEN)
+    ax.set_title(f"Out-of-time score stability — PSI {res.get('psi_out_of_time').value:.3f}")
+    ax.set_xlabel("Score (300-850)"); ax.set_ylabel("Density"); ax.legend()
+    fig.text(0.1, 0.02,
+             "Densities (not counts) so window sizes are comparable. Recent vintages are less "
+             "matured in the 2018 snapshot; a high PSI may reflect completeness, not only drift.",
+             size=7, color="#777")
+    pdf.savefig(fig); plt.close(fig)
+
+
 def build_pdf(res: Results | None = None, out_path: str | Path | None = None) -> Path:
     res = res or run()
     out_path = Path(out_path) if out_path else (C.REPO_ROOT / "validation" / "report"
@@ -121,6 +137,7 @@ def build_pdf(res: Results | None = None, out_path: str | Path | None = None) ->
     with PdfPages(out_path) as pdf:
         _cover_page(pdf, res)
         _charts_page(pdf, res)
+        _oot_page(pdf, res)
     return out_path
 
 
